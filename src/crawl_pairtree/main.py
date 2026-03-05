@@ -212,6 +212,11 @@ def main():
         "crawl-pairtree", description="crawl the ldr and create the data model to serve"
     )
     parser.add_argument(
+        "--db",
+        nargs="?",
+        help="provide a path where the database should be stored, if no argument passed, the database will be in memory",
+    )
+    parser.add_argument(
         "basedirs",
         nargs="+",
         help="base directories to walk to find the files to parse",
@@ -219,8 +224,9 @@ def main():
 
     args = parser.parse_args()
 
-    store = Store()
+    store = Store() if not args.db else Store(args.db)
 
+    ocfl_counter = 1
     for basedir in args.basedirs:
         for root, _dir, files in os.walk(basedir):
             for f in files:
@@ -229,8 +235,13 @@ def main():
 
                 # print(root, f)
                 parse_inventory("inventory.json", Path(root), store)
+                ocfl_counter += 1
+                if args.db and ocfl_counter % 100 == 0:
+                    print("flushing store")
+                    store.flush()
 
             # print(dir)
+    store.flush()
     prefixes = {
         "ark": "http://ark.lib.uchicago.edu/ark:61001/",
         "conti": "http://continuum.lib.uchicago.edu/item/",
