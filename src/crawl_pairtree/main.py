@@ -86,8 +86,12 @@ def get_types(file_parts: List[str], base_name: str) -> Optional[Tuple[str, str]
             file_type = "pf" if base_name in ("file.tif", "file.pdf") else None
             type_node = match_file_type(file_type)
         case _:
-            print(f"Error with File {file_name}")
-            return
+            ext = file_parts[-1]
+            if ext in ("pdf", "tif"):
+                print(f"Error with File {' - '.join(file_parts)}")
+                return
+            mime_type = find_mime_type(ext)
+            type_node = match_file_type("supplimental")
     return (mime_type, type_node)
 
 
