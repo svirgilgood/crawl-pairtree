@@ -146,12 +146,12 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
     ark_full = inventory["id"]  # .replace("ark:61001/", "")
     # ark_id = ark_full.replace("ark:61001/", "")
     ark_id = ark_full.replace("ark:61001/", "").replace("ark:/61001/", "")
-    ark_node = NS.ark.term(ark_full)
+    ark_node = ns.ark.term(ark_full)
     print("ark node", ark_node)
     digest_algo = inventory["digestAlgorithm"]
     head = inventory["head"]
     store.add(Quad(ark_node, continuum_ns.head, Literal(head)))
-    store.add(Quad(ark_node, NS.rdf.type, NS.edm.ProvidedCHO))
+    store.add(Quad(ark_node, ns.rdf.type, ns.edm.ProvidedCHO))
     store.add(Quad(ark_node, continuum_ns.hasArkID, Literal(ark_id)))
     versions = inventory["versions"]
     for version, v_obj in versions.items():
