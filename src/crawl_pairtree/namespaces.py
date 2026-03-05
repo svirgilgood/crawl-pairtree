@@ -42,7 +42,7 @@ PREFIXES = {
 
 
 class NS:
-    def __init__(prefixes: Dict[str, str]):
+    def __init__(self, prefixes: Dict[str, str]):
         self.dict = prefixes
 
     def get(self, namespace):

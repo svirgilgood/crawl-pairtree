@@ -34,8 +34,11 @@ from .namespaces import (
     XSD,
     DCTERMS,
     NS,
+    PREFIXES,
 )
 from typing import Optional, List, Tuple, Dict
+
+ns = NS(PREFIXES)
 
 
 def find_mime_type(ext: str) -> Optional[str]:

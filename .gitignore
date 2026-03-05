@@ -1,2 +1,3 @@
 tests/
 .crawl-pairtree
+__pycache__/
