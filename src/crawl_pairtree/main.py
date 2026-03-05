@@ -33,6 +33,7 @@ from .namespaces import (
     RDF,
     XSD,
     DCTERMS,
+    NS,
 )
 from typing import Optional, List, Tuple, Dict
 
