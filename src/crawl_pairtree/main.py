@@ -107,13 +107,13 @@ def update_id_manifest(
     """
     update_q = """PREFIX continuum: <http://continuum.lib.uchicago.edu/ontology/>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    PREFIX primis:  <http://www.loc.gov/premis/rdf/v3/>
+    PREFIX premis:  <http://www.loc.gov/premis/rdf/v3/>
 
     INSERT {
         <%s> continuum:hasHeadObject ?file .
     }
     WHERE {
-        ?file primis:fixity/rdf:value ?hash
+        ?file premis:fixity/rdf:value ?hash
         VALUES ?hash {
     """ % (
         ark_node.value,
