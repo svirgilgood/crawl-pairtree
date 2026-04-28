@@ -4,6 +4,7 @@ of data
 """
 
 import argparse
+import datetime
 import os
 import json
 import io
@@ -267,5 +268,7 @@ def main():
     }
     output = io.BytesIO()
     serialize(store, output=output, format=RdfFormat.TURTLE, prefixes=prefixes)
-    with open("continuum.ttl", "w") as fp:
+    with open(
+        f"continuum_{str(datetime.datetime.now()).replace(' ', 'T')}.ttl", "w"
+    ) as fp:
         fp.write(output.getvalue().decode("utf-8"))
