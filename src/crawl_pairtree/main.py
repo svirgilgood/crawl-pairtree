@@ -3,6 +3,8 @@ Create a script that crawls the pair tree and then creates the model
 of data
 """
 
+# This needs Logging
+
 import argparse
 import datetime
 import os
@@ -119,10 +121,23 @@ def update_id_manifest(
     """ % (
         ark_node.value,
     )
-    hash_value_clause = '"' + '"\n "'.join(head_manifest.keys()) + '"'
+    # hash_value_clause = '"' + '"\n "'.join(head_manifest.keys()) + '"'
+    hash_value_clause = "\n".join([Literal(h) for h in head_manifest.keys()])
     query = update_q + hash_value_clause + "\n        }\n    }"
     # print(query)
     store.update(query)
+
+
+def create_head_object(inventory: Dict, store: Store, ark_node: NamedNode):
+    """
+    Iterate backwards through the versions, and add files to the head object that
+    are not in the head already. This might be better as a query that could be reused.
+    """
+    file_set = set()
+    for version in sorted(inventory["versions"].keys(), reverse=True):
+        print(version)
+
+    return
 
 
 def format_local(type_node: NamedNode) -> str:
@@ -148,14 +163,16 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
     # ark_id = ark_full.replace("ark:61001/", "")
     ark_id = ark_full.replace("ark:61001/", "").replace("ark:/61001/", "")
     ark_node = ns.ark.term(ark_full)
-    print("ark node", ark_node)
+    # print("ark node", ark_node)
     digest_algo = inventory["digestAlgorithm"]
     head = inventory["head"]
     store.add(Quad(ark_node, continuum_ns.head, Literal(head)))
     store.add(Quad(ark_node, ns.rdf.type, ns.edm.ProvidedCHO))
     store.add(Quad(ark_node, continuum_ns.hasArkID, Literal(ark_id)))
-    versions = inventory["versions"]
-    for version, v_obj in versions.items():
+    versions = sorted(inventory["versions"].keys(), reverse=True)
+    file_name_set = set()
+    for version in versions:
+        v_obj = inventory["versions"][version]
         created = v_obj["created"]
 
         store.add(
@@ -181,6 +198,10 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
                     file_node = continuum_item.term(
                         f"{ark_id}/{format_local(type_node)}/{version}/{file_name}"
                     )
+
+                if file_name not in file_name_set:
+                    file_name_set.add(file_name)
+                    store.add(Quad(ark_node, continuum_ns.hasHeadFile, file_node))
 
                 if mime_type:
                     store.add(Quad(file_node, ebucore.hasMimeType, Literal(mime_type)))
@@ -214,7 +235,7 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
                 )
                 store.add(Quad(premis_node, RDF.value, Literal(hash)))
     # Called  here to add the various manifest files to the specific ark node
-    update_id_manifest(store, ark_node, inventory["manifest"])
+    # update_id_manifest(store, ark_node, inventory["manifest"])
 
 
 def main():
@@ -242,6 +263,7 @@ def main():
     ocfl_counter = 1
     for basedir in args.basedirs:
         for root, _dir, files in os.walk(basedir):
+            # I should set this up to paralize this
             for f in files:
                 if not f.startswith("0=ocfl_object_1"):
                     continue
@@ -249,8 +271,8 @@ def main():
                 # print(root, f)
                 parse_inventory("inventory.json", Path(root), store)
                 ocfl_counter += 1
-                if args.db and ocfl_counter % 100 == 0:
-                    print("flushing store")
+                if args.db and ocfl_counter % 1000 == 0:
+                    print(f"flushing store: {ocfl_counter} Records")
                     store.flush()
 
             # print(dir)
