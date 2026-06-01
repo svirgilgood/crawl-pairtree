@@ -30,6 +30,7 @@ DCTERMS = Namespace("http://purl.org/dc/terms/")
 
 PREFIXES = {
     "ark": "http://ark.lib.uchicago.edu/",
+    "bf": "http://id.loc.gov/ontologies/bibframe/",
     "continuum": "http://continuum.lib.uchicago.edu/item/",
     "premis": "http://www.loc.gov/premis/rdf/v3/",
     "ebucore": "http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#",
@@ -37,6 +38,7 @@ PREFIXES = {
     "dcterms": "http://purl.org/dc/terms/",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
     "edm": "http://www.europeana.eu/schemas/edm/",
 }
 
