@@ -337,6 +337,8 @@ def main():
                         )
                         p.start()
                         processes.append(p)
+                        if f.startswith("0=ocfl_object_1"):
+                            ocfl += 1
                         if (ocfl_counter % 1000) == 0:
                             store.flush()
                             print(f"iteration: {ocfl_counter}")
