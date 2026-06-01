@@ -25,7 +25,9 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
 dependencies = [
-  "pyoxigraph==0.5.5"
+  "pyoxigraph==0.5.5",
+  "ocfl-py==2.0.2",
+  "rdflib==7.6.0"
 ]
 
 [project.urls]
