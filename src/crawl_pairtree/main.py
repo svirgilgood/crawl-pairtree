@@ -39,6 +39,8 @@ from .namespaces import (
     NS,
     PREFIXES,
 )
+from .parse_dc import parse_dc
+from .parse_bag import parse_bag_info
 from typing import Optional, List, Tuple, Dict
 
 ns = NS(PREFIXES)
@@ -201,7 +203,7 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
 
                 if file_name not in file_name_set:
                     file_name_set.add(file_name)
-                    store.add(Quad(ark_node, continuum_ns.hasHeadFile, file_node))
+                    store.add(Quad(ark_node, continuum_ns.hasHeadObject, file_node))
 
                 if mime_type:
                     store.add(Quad(file_node, ebucore.hasMimeType, Literal(mime_type)))
@@ -238,6 +240,16 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
     # update_id_manifest(store, ark_node, inventory["manifest"])
 
 
+def return_relative_id(root: str):
+    """
+    returns the id relative to a specific id
+    """
+    inventory = Path(root).parents[1] / "inventory.json"
+    with open(inventory, "r") as jp:
+        inv = json.load(jp)
+    return inv.get("id")
+
+
 def main():
     """
     How do parse the pair tree and add it to the data.
@@ -265,6 +277,18 @@ def main():
         for root, _dir, files in os.walk(basedir):
             # I should set this up to paralize this
             for f in files:
+                if f == "file.dc.xml":
+                    id = return_relative_id(root)
+                    if not id:
+                        print(f"Id Not found for {root}/{f}")
+                        continue
+                    parse_dc(Path(root) / f, ns.ark.term(id), store)
+                if f == "file.info.txt":
+                    id = return_relative_id(root)
+                    if not id:
+                        print(f"Id Not found for {root}/{f}")
+                    parse_bag_info(Path(root) / f, ns.ark.term(id), store)
+
                 if not f.startswith("0=ocfl_object_1"):
                     continue
 
@@ -277,19 +301,9 @@ def main():
 
             # print(dir)
     store.flush()
-    prefixes = {
-        "ark": "http://ark.lib.uchicago.edu/ark:61001/",
-        "conti": "http://continuum.lib.uchicago.edu/item/",
-        "continuum": "http://continuum.lib.uchicago.edu/ontology/",
-        "premis": "http://www.loc.gov/premis/rdf/v3/",
-        "ebucore": "http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#",
-        "dc": "http://purl.org/dc/elements/1.1/",
-        "dcterms": "http://purl.org/dc/terms/",
-        "xsd": "http://www.w3.org/2001/XMLSchema#",
-        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-    }
+
     output = io.BytesIO()
-    serialize(store, output=output, format=RdfFormat.TURTLE, prefixes=prefixes)
+    serialize(store, output=output, format=RdfFormat.TURTLE, prefixes=PREFIXES)
     with open(
         f"continuum_{str(datetime.datetime.now()).replace(' ', 'T')}.ttl", "w"
     ) as fp:
