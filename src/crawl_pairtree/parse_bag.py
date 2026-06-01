@@ -175,7 +175,6 @@ class BagMetadata:
                     )
                 case _:
                     continue
-        return quad_list
 
     def add_collection(self, quad_list: List[Quad]):
         if not self.ark_node:
@@ -369,12 +368,9 @@ def parsing_bag(bag_info: Path) -> BagMetadata:
     return bag_metadata
 
 
-def parse_bag_info(bag_info: Path, id: NamedNode, store: Store):
+def parse_bag_info(bag_info: Path, id: NamedNode, quad_list: List[Quad]):
     """ """
     bag_metadata = parsing_bag(bag_info)
     bag_metadata.set_ark_node(id)
-    quad_list: List[Quad] = []
     bag_metadata.add_collection(quad_list)
-    quad_list = bag_metadata.to_metadata_triples(quad_list)
-    for quad in quad_list:
-        store.add(quad)
+    bag_metadata.to_metadata_triples(quad_list)

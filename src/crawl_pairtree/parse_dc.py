@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List
 
 
-def parse_dc(file: Path, id_node: NamedNode, store: Store):
+def parse_dc(file: Path, id_node: NamedNode, quad_list: List[Quad]):
     """
     takes the full path to the file
     """
@@ -26,4 +26,4 @@ def parse_dc(file: Path, id_node: NamedNode, store: Store):
                 # This maybe should be recursive
                 obj_node = Literal(str(obj))
 
-        store.add(Quad(id_node, predicate, obj_node))
+        quad_list.append(Quad(id_node, predicate, obj_node))
