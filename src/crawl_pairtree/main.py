@@ -254,22 +254,22 @@ def return_relative_id(root: str):
 def process_files(f, root, store, sema):
     if f == "file.dc.xml":
         id = return_relative_id(root)
-        if not id:
+        if id:
+            parse_dc(Path(root) / f, ns.ark.term(id), store)
+        else:
             print(f"Id Not found for {root}/{f}")
-            sema.release()
-        parse_dc(Path(root) / f, ns.ark.term(id), store)
-    if f == "file.info.txt":
+    elif f == "file.info.txt":
         id = return_relative_id(root)
-        if not id:
-            sema.release()
+        if id:
+            parse_bag_info(Path(root) / f, ns.ark.term(id), store)
+        else:
             print(f"Id Not found for {root}/{f}")
-        parse_bag_info(Path(root) / f, ns.ark.term(id), store)
 
-    if not f.startswith("0=ocfl_object_1"):
-        sema.release()
-        return
+    elif f.startswith("0=ocfl_object_1"):
+        parse_inventory("inventory.json", Path(root), store)
+    else:
+        pass
     # print(root, f)
-    parse_inventory("inventory.json", Path(root), store)
     sema.release()
 
 
@@ -309,15 +309,15 @@ def main():
                     "0=ocfl_object_1.0",
                     "0=ocfl_object_1.1",
                 ):
+                    ocfl_counter += 1
                     sema.acquire()
                     p = Process(target=process_files, args=(f, root, store, sema))
                     p.start()
                     processes.append(p)
+                    if (ocfl_counter % 1000) == 0:
+                        store.flush()
+                        print(f"iteration: {ocfl_counter}")
         for p in processes:
-            ocfl_counter += 1
-            if ocfl_counter % 1000 == 0:
-                store.flush()
-                print(f"iteration: {ocfl_counter}")
             p.join()
 
         # print(dir)
