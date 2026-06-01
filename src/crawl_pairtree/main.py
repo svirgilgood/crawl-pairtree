@@ -24,6 +24,7 @@ from pyoxigraph import (
 )
 import pyoxigraph as po
 
+from multiprocessing import Process, Semaphore
 
 from .namespaces import (
     ebucore,
@@ -250,6 +251,28 @@ def return_relative_id(root: str):
     return inv.get("id")
 
 
+def process_files(f, root, store, sema):
+    if f == "file.dc.xml":
+        id = return_relative_id(root)
+        if not id:
+            print(f"Id Not found for {root}/{f}")
+            sema.release()
+        parse_dc(Path(root) / f, ns.ark.term(id), store)
+    if f == "file.info.txt":
+        id = return_relative_id(root)
+        if not id:
+            sema.release()
+            print(f"Id Not found for {root}/{f}")
+        parse_bag_info(Path(root) / f, ns.ark.term(id), store)
+
+    if not f.startswith("0=ocfl_object_1"):
+        sema.release()
+        return
+    # print(root, f)
+    parse_inventory("inventory.json", Path(root), store)
+    sema.release()
+
+
 def main():
     """
     How do parse the pair tree and add it to the data.
@@ -274,32 +297,30 @@ def main():
 
     ocfl_counter = 1
     for basedir in args.basedirs:
+        processes = []
+        concurrency = 20
+        sema = Semaphore(concurrency)
         for root, _dir, files in os.walk(basedir):
             # I should set this up to paralize this
             for f in files:
-                if f == "file.dc.xml":
-                    id = return_relative_id(root)
-                    if not id:
-                        print(f"Id Not found for {root}/{f}")
-                        continue
-                    parse_dc(Path(root) / f, ns.ark.term(id), store)
-                if f == "file.info.txt":
-                    id = return_relative_id(root)
-                    if not id:
-                        print(f"Id Not found for {root}/{f}")
-                    parse_bag_info(Path(root) / f, ns.ark.term(id), store)
+                if f in (
+                    "file.dc.xml",
+                    "file.info.txt",
+                    "0=ocfl_object_1.0",
+                    "0=ocfl_object_1.1",
+                ):
+                    sema.acquire()
+                    p = Process(target=process_files, args=(f, root, store, sema))
+                    p.start()
+                    processes.append(p)
+        for p in processes:
+            ocfl_counter += 1
+            if ocfl_counter % 1000 == 0:
+                store.flush()
+                print(f"iteration: {ocfl_counter}")
+            p.join()
 
-                if not f.startswith("0=ocfl_object_1"):
-                    continue
-
-                # print(root, f)
-                parse_inventory("inventory.json", Path(root), store)
-                ocfl_counter += 1
-                if args.db and ocfl_counter % 1000 == 0:
-                    print(f"flushing store: {ocfl_counter} Records")
-                    store.flush()
-
-            # print(dir)
+        # print(dir)
     store.flush()
 
     output = io.BytesIO()
