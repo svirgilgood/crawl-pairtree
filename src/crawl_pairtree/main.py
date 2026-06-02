@@ -154,7 +154,7 @@ def format_local(type_node: NamedNode) -> str:
     return name[idx:].lower()
 
 
-def parse_inventory(inventory_file: Path, root: Path, quad_list: List[Quad]):
+def parse_inventory(inventory_file: Path, root: Path, store: Store):
     """
     Parse the inventory file to create the various items that will be stored in
     continuum
@@ -169,16 +169,16 @@ def parse_inventory(inventory_file: Path, root: Path, quad_list: List[Quad]):
     # print("ark node", ark_node)
     digest_algo = inventory["digestAlgorithm"]
     head = inventory["head"]
-    quad_list.append(Quad(ark_node, continuum_ns.head, Literal(head)))
-    quad_list.append(Quad(ark_node, ns.rdf.type, ns.edm.ProvidedCHO))
-    quad_list.append(Quad(ark_node, continuum_ns.hasArkID, Literal(ark_id)))
+    store.add(Quad(ark_node, continuum_ns.head, Literal(head)))
+    store.add(Quad(ark_node, ns.rdf.type, ns.edm.ProvidedCHO))
+    store.add(Quad(ark_node, continuum_ns.hasArkID, Literal(ark_id)))
     versions = sorted(inventory["versions"].keys(), reverse=True)
     file_name_set = set()
     for version in versions:
         v_obj = inventory["versions"][version]
         created = v_obj["created"]
 
-        quad_list.append(
+        store.add(
             Quad(ark_node, DCTERMS.modified, Literal(created, datatype=XSD.datetime))
         )
 
@@ -204,23 +204,15 @@ def parse_inventory(inventory_file: Path, root: Path, quad_list: List[Quad]):
 
                 if file_name not in file_name_set:
                     file_name_set.add(file_name)
-                    quad_list.append(
-                        Quad(ark_node, continuum_ns.hasHeadObject, file_node)
-                    )
+                    store.add(Quad(ark_node, continuum_ns.hasHeadObject, file_node))
 
                 if mime_type:
-                    quad_list.append(
-                        Quad(file_node, ebucore.hasMimeType, Literal(mime_type))
-                    )
+                    store.add(Quad(file_node, ebucore.hasMimeType, Literal(mime_type)))
 
-                quad_list.append(Quad(file_node, continuum_ns.fileType, type_node))
-                quad_list.append(
-                    Quad(file_node, premis_ns.originalName, Literal(file_name))
-                )
-                quad_list.append(
-                    Quad(file_node, continuum_ns.partOfVersion, Literal(version))
-                )
-                quad_list.append(
+                store.add(Quad(file_node, continuum_ns.fileType, type_node))
+                store.add(Quad(file_node, premis_ns.originalName, Literal(file_name)))
+                store.add(Quad(file_node, continuum_ns.partOfVersion, Literal(version)))
+                store.add(
                     Quad(
                         file_node,
                         DCTERMS.created,
@@ -229,13 +221,13 @@ def parse_inventory(inventory_file: Path, root: Path, quad_list: List[Quad]):
                 )
 
                 file_path = root / version / "content" / file_name
-                quad_list.append(
+                store.add(
                     Quad(file_node, continuum_ns.hasPath, Literal(str(file_path)))
                 )
                 premis_node = BlankNode()
-                quad_list.append(Quad(file_node, premis_ns.fixity, premis_node))
-                quad_list.append(Quad(file_node, DCTERMS.isPartOf, ark_node))
-                quad_list.append(
+                store.add(Quad(file_node, premis_ns.fixity, premis_node))
+                store.add(Quad(file_node, DCTERMS.isPartOf, ark_node))
+                store.add(
                     Quad(
                         premis_node,
                         RDF.type,
@@ -244,7 +236,7 @@ def parse_inventory(inventory_file: Path, root: Path, quad_list: List[Quad]):
                         ),
                     )
                 )
-                quad_list.append(Quad(premis_node, RDF.value, Literal(hash)))
+                store.add(Quad(premis_node, RDF.value, Literal(hash)))
     # Called  here to add the various manifest files to the specific ark node
     # update_id_manifest(store, ark_node, inventory["manifest"])
 
@@ -259,37 +251,25 @@ def return_relative_id(root: str):
     return inv.get("id")
 
 
-def process_files(f, root, quad_list, sema):
+def process_files(f: str, root: str, store: Store):
     if f == "file.dc.xml":
         id = return_relative_id(root)
         if id:
-            parse_dc(Path(root) / f, ns.ark.term(id), quad_list)
+            parse_dc(Path(root) / f, ns.ark.term(id), store)
         else:
             print(f"Id Not found for {root}/{f}")
     elif f == "file.info.txt":
         id = return_relative_id(root)
         if id:
-            parse_bag_info(Path(root) / f, ns.ark.term(id), quad_list)
+            parse_bag_info(Path(root) / f, ns.ark.term(id), store)
         else:
             print(f"Id Not found for {root}/{f}")
 
     elif f.startswith("0=ocfl_object_1"):
-        parse_inventory("inventory.json", Path(root), quad_list)
+        parse_inventory("inventory.json", Path(root), store)
     else:
         pass
     # print(root, f)
-    sema.release()
-
-
-class Counter:
-    def __init__(self, x):
-        self.count = x
-
-    def inc(self):
-        self.count += 1
-
-    def get(self):
-        return self.count
 
 
 def main():
@@ -316,36 +296,22 @@ def main():
 
     ocfl_counter = 0
     for basedir in args.basedirs:
-        processes = []
-        concurrency = 20
-        sema = Semaphore(concurrency)
-        with Manager() as manager:
-            quad_list = manager.list()
 
-            for root, _dir, files in os.walk(basedir):
-                # I should set this up to paralize this
-                for f in files:
-                    if f in (
-                        "file.dc.xml",
-                        "file.info.txt",
-                        "0=ocfl_object_1.0",
-                        "0=ocfl_object_1.1",
-                    ):
-                        sema.acquire()
-                        p = Process(
-                            target=process_files, args=(f, root, quad_list, sema)
-                        )
-                        p.start()
-                        processes.append(p)
-                        if f.startswith("0=ocfl_object_1"):
-                            ocfl_counter += 1
-                        if (ocfl_counter % 1000) == 0:
-                            store.flush()
-                            print(f"iteration: {ocfl_counter}")
-            for p in processes:
-                p.join()
-            for quad in quad_list:
-                store.add(quad)
+        for root, _dir, files in os.walk(basedir):
+            # I should set this up to paralize this
+            for f in files:
+                if f in (
+                    "file.dc.xml",
+                    "file.info.txt",
+                    "0=ocfl_object_1.0",
+                    "0=ocfl_object_1.1",
+                ):
+                    process_files(f, root, store)
+                    if f.startswith("0=ocfl_object_1"):
+                        ocfl_counter += 1
+                    if (ocfl_counter % 1000) == 0:
+                        store.flush()
+                        print(f"iteration: {ocfl_counter}")
 
     print(f"Total Number: {ocfl_counter}")
 
