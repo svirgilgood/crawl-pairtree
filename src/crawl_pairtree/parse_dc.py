@@ -2,8 +2,11 @@ from rdflib import Graph, term
 
 from pyoxigraph import Store, NamedNode, Literal, Quad
 from pathlib import Path
+from .namespaces import NS, PREFIXES
 
 from typing import List
+
+ns = NS(PREFIXES)
 
 
 def parse_dc(file: Path, id_node: NamedNode, store: Store):
@@ -15,6 +18,11 @@ def parse_dc(file: Path, id_node: NamedNode, store: Store):
 
     for _, pred, obj in graph.triples((None, None, None)):
         predicate = NamedNode(str(pred))
+        # Removing the rdf type from the dc.xml crawl
+        # because it will take this element: <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        # and turn it into an rdf type for the file.
+        if predicate == ns.rdf.type:
+            continue
         match obj:
             case term.URIRef():
                 obj_node = NamedNode(str(obj))
