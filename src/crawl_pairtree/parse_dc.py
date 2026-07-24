@@ -33,5 +33,7 @@ def parse_dc(file: Path, id_node: NamedNode, store: Store):
             case _:
                 # This maybe should be recursive
                 obj_node = Literal(str(obj))
+        if predicate == ns.dc.identifier:
+            store.add(Quad(id_node, ns.continuum.originalIdentifier, obj_node))
 
         store.add(Quad(id_node, predicate, obj_node))
