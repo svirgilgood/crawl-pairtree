@@ -16,10 +16,10 @@ class Namespace(str):
         return self.term(local)
 
 
-ark_ns = Namespace("http://ark.lib.uchicago.edu/ark:61001/")
+ark_ns = Namespace("https://ark.lib.uchicago.edu/ark:61001/")
 
-continuum_ns = Namespace("http://continuum.lib.uchicago.edu/ontology/")
-continuum_item = Namespace("http://continuum.lib.uchicago.edu/item/")
+continuum_ns = Namespace("https://continuum.lib.uchicago.edu/ontology/")
+continuum_item = Namespace("https://continuum.lib.uchicago.edu/item/")
 premis_ns = Namespace("http://www.loc.gov/premis/rdf/v3/")
 ebucore = Namespace("http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#")
 
@@ -29,9 +29,10 @@ RDF = Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 DCTERMS = Namespace("http://purl.org/dc/terms/")
 
 PREFIXES = {
-    "ark": "http://ark.lib.uchicago.edu/",
+    "ark": "https://ark.lib.uchicago.edu/",
     "bf": "http://id.loc.gov/ontologies/bibframe/",
     "continuum": "http://continuum.lib.uchicago.edu/item/",
+    "cont": "http://continuum.lib.uchicago.edu/ontology/",
     "premis": "http://www.loc.gov/premis/rdf/v3/",
     "ebucore": "http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#",
     "dc": "http://purl.org/dc/elements/1.1/",
