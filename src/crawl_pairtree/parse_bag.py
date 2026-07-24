@@ -118,6 +118,12 @@ class BagMetadata:
     def set_ark_node(self, ark_node: NamedNode):
         self.ark_node = ark_node
 
+    def construct_original_name(self, file_name: str, page: Optional[str]):
+        if not self.internal_id:
+            return file_name
+        _, ext = file_name.split(".", maxsplit=1)
+        return f"{self.intenral_id}.{ext}"
+
     def to_metadata_triples(self, quad_list: List[Quad] = []) -> List[Quad]:
         """ """
         for f in fields(self):
@@ -128,8 +134,25 @@ class BagMetadata:
                     quad_list.append(
                         Quad(
                             self.ark_node,
+                            # ns.continuum.originalIdentifier,
+                            ns.dc.identifier,
+                            Literal(self.internal_id),
+                        )
+                    )
+                    quad_list.append(
+                        Quad(
+                            self.ark_node,
                             ns.continuum.originalIdentifier,
                             Literal(self.internal_id),
+                        )
+                    )
+
+                case "rights":
+                    quad_list.append(
+                        Quad(
+                            self.ark_node,
+                            ns.dc.rights,
+                            NamedNode(self.rights),
                         )
                     )
                 case "resource_constraint":
@@ -137,7 +160,7 @@ class BagMetadata:
                         quad_list.append(
                             Quad(
                                 self.ark_node,
-                                ns.edm.rights,
+                                ns.dc.rights,
                                 NamedNode(self.resource_constraint),
                             )
                         )
@@ -146,7 +169,7 @@ class BagMetadata:
                         quad_list.append(
                             Quad(
                                 self.ark_node,
-                                ns.edm.rights,
+                                ns.dc.rights,
                                 Literal(self.resource_constraint),
                             )
                         )
@@ -184,6 +207,13 @@ class BagMetadata:
             f"http://continuum.lib.uchicago.edu/project/{local_name}"
         )
         quad_list.append(Quad(self.ark_node, ns.dcterms.isPartOf, collection_node))
+        quad_list.append(
+            Quad(
+                self.ark_node,
+                ns.dc.identifier,
+                Literal(self.internal_id),
+            )
+        )
         quad_list.append(
             Quad(
                 self.ark_node,
@@ -227,7 +257,7 @@ class BagMetadata:
         quad_list.append(Quad(ark_node, ns.rdf.type, ns.edm.ProvidedCHO))
         quad_list.append(Quad(ark_node, ns.continuum.hasArkID, Literal(ark_id)))
         if self.rights != "":
-            quad_list.append(Quad(ark_node, ns.edm.rights, NamedNode(self.rights)))
+            quad_list.append(Quad(ark_node, ns.dc.rights, NamedNode(self.rights)))
         """
         We only need the current version of the inventory. If its the initial item,
         there will only be one version. If there are many versions, we only need
@@ -262,10 +292,12 @@ class BagMetadata:
                         continue
 
                     slash_split = file_name.split("/")
+                    page: Optional[str] = None
                     if len(slash_split) == 2:
                         """The file node is created"""
+                        page = slash_split[0]
                         file_node = continuum_item.term(
-                            f"{ark_id}/{format_local(type_node)}/{version}/{slash_split[1]}/{slash_split[0]}"
+                            f"{ark_id}/{format_local(type_node)}/{version}/{slash_split[1]}/{page}"
                         )
                     else:
                         file_node = continuum_item.term(
@@ -286,6 +318,9 @@ class BagMetadata:
                         )
 
                     quad_list.append(Quad(file_node, ns.continuum.fileType, type_node))
+                    og_file_name = Literal(
+                        self.construct_original_name(file_name, page)
+                    )
                     quad_list.append(
                         Quad(file_node, ns.premis.originalName, Literal(file_name))
                     )
