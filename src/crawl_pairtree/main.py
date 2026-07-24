@@ -42,6 +42,8 @@ from .namespaces import (
 )
 from .parse_dc import parse_dc
 from .parse_bag import parse_bag_info
+
+# from .parse_manifest import parse_manifest
 from typing import Optional, List, Tuple, Dict
 
 ns = NS(PREFIXES)
@@ -154,6 +156,15 @@ def format_local(type_node: NamedNode) -> str:
     return name[idx:].lower()
 
 
+def construct_original_name(
+    file_name: str, internal_id: Optional[str] = None, page: Optional[str] = None
+):
+    if not internal_id:
+        return file_name
+    _, ext = file_name.split(".", maxsplit=1)
+    return f"{internal_id}.{ext}" if not page else f"{internal_id}_{page}.{ext}"
+
+
 def parse_inventory(inventory_file: Path, root: Path, store: Store):
     """
     Parse the inventory file to create the various items that will be stored in
@@ -162,6 +173,7 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
     with open(root / inventory_file, "r") as jsonp:
         inventory = json.load(jsonp)
 
+    content_manifest = inventory["manifest"]
     ark_full = inventory["id"]  # .replace("ark:61001/", "")
     # ark_id = ark_full.replace("ark:61001/", "")
     ark_id = ark_full.replace("ark:61001/", "").replace("ark:/61001/", "")
@@ -174,6 +186,19 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
     store.add(Quad(ark_node, continuum_ns.hasArkID, Literal(ark_id)))
     versions = sorted(inventory["versions"].keys(), reverse=True)
     file_name_set = set()
+    """
+    try:
+        _, _, internal_id = list(
+            store.quads_for_pattern(
+                ark_node,
+                ns.continuum.orginalIdentifier,
+                None,
+            )
+        ).pop()
+    except IndexError:
+        print("Error in finding internal id: ", ark_node)
+        internal_id = None
+    """
     for version in versions:
         v_obj = inventory["versions"][version]
         created = v_obj["created"]
@@ -181,7 +206,6 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
         store.add(
             Quad(ark_node, DCTERMS.modified, Literal(created, datatype=XSD.datetime))
         )
-
         for hash, file_names in v_obj["state"].items():
             for file_name in file_names:
                 base_fname = os.path.basename(file_name)
@@ -210,6 +234,7 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
                     store.add(Quad(file_node, ebucore.hasMimeType, Literal(mime_type)))
 
                 store.add(Quad(file_node, continuum_ns.fileType, type_node))
+
                 store.add(Quad(file_node, premis_ns.originalName, Literal(file_name)))
                 store.add(Quad(file_node, continuum_ns.partOfVersion, Literal(version)))
                 store.add(
@@ -220,9 +245,27 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
                     )
                 )
 
-                file_path = root / version / "content" / file_name
+                # I think a distinction between content paths and logical paths need to
+                # be made. Thsi is currently just the content path
+                try:
+                    content_path = root / content_manifest[hash][0]
+                except IndexError:
+                    print(content_manifest)
+                    print(
+                        f"ark node: {ark_node}\n file node: {file_node}\n hash: {hash}"
+                    )
                 store.add(
-                    Quad(file_node, continuum_ns.hasPath, Literal(str(file_path)))
+                    Quad(file_node, continuum_ns.hasPath, Literal(str(content_path)))
+                    # Quad(file_node, continuum_ns.hasPath, Literal(str(file_path)))
+                )
+                logical_path = root / version / "content" / file_name
+                store.add(
+                    Quad(
+                        file_node,
+                        continuum_ns.hasLogicalPath,
+                        Literal(str(logical_path)),
+                    )
+                    # Quad(file_node, continuum_ns.hasPath, Literal(str(file_path)))
                 )
                 premis_node = BlankNode()
                 store.add(Quad(file_node, premis_ns.fixity, premis_node))
@@ -264,6 +307,12 @@ def process_files(f: str, root: str, store: Store):
             parse_bag_info(Path(root) / f, ns.ark.term(id), store)
         else:
             print(f"Id Not found for {root}/{f}")
+    # elif f == "file.manifest.json":
+    #    id = return_relative_id(root)
+    #    if id:
+    #        parse_manifest(Path(root) / f, ns.ark.term(id), store)
+    #    else:
+    #        print(f"Id Not found for {root}/{f}")
 
     elif f.startswith("0=ocfl_object_1"):
         parse_inventory("inventory.json", Path(root), store)
@@ -298,11 +347,12 @@ def main():
     for basedir in args.basedirs:
 
         for root, _dir, files in os.walk(basedir):
-            # I should set this up to paralize this
+            # I should set this up to ~paralize~async this
             for f in files:
                 if f in (
                     "file.dc.xml",
                     "file.info.txt",
+                    "file.manifest.json",
                     "0=ocfl_object_1.0",
                     "0=ocfl_object_1.1",
                 ):
@@ -317,6 +367,30 @@ def main():
 
     # print(dir)
     store.flush()
+
+    for cho, _pred, og_identifier, _ in store.quads_for_pattern(
+        None, ns.continuum.originalIdentifier, None
+    ):
+        og_id = str(og_identifier).replace('"', "")
+        for _sub, _pred, file_obj, _ in store.quads_for_pattern(
+            cho, ns.cont.hasHeadObject, None
+        ):
+            for _sub, og_name, file_name, _ in store.quads_for_pattern(
+                file_obj, ns.premis.originalName, None
+            ):
+                file_str = str(file_name)
+                if file_str.find("/") != -1:
+                    page, fname = file_str.split("/", maxsplit=1)
+                    p = f"{page}"
+                    formatted_page = str(int(p.replace('"', ""))).rjust(3, "0")
+                    new_name = fname.replace("file", f"{og_id}_{formatted_page}")
+                else:
+                    new_name = file_str.replace("file", f"{og_id}")
+                new_name = new_name.replace('"', "")
+                print(new_name)
+
+                store.remove(Quad(file_obj, og_name, file_name))
+                store.add(Quad(file_obj, og_name, Literal(new_name)))
 
     output = io.BytesIO()
     serialize(store, output=output, format=RdfFormat.TURTLE, prefixes=PREFIXES)
