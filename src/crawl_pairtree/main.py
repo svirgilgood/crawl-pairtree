@@ -216,10 +216,15 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
                     continue
 
                 slash_split = file_name.split("/")
+                page_number = None
                 if len(slash_split) == 2:
                     """The file node is created"""
+                    page_number = slash_split[0]
                     file_node = continuum_item.term(
-                        f"{ark_id}/{format_local(type_node)}/{version}/{slash_split[1]}/{slash_split[0]}"
+                        f"{ark_id}/{format_local(type_node)}/{version}/{slash_split[1]}/{page_number}"
+                    )
+                    store.add(
+                        Quad(file_node, continuum_ns.partNumber, Literal(page_number))
                     )
                 else:
                     file_node = continuum_item.term(
