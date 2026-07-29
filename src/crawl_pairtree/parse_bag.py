@@ -148,6 +148,9 @@ class BagMetadata:
                     )
 
                 case "rights":
+                    if self.rights.strip() is None:
+                        print(f"rights statement error: {self.ark_node}")
+                        continue
                     quad_list.append(
                         Quad(
                             self.ark_node,
@@ -256,7 +259,7 @@ class BagMetadata:
         print("ark node", ark_node)
         quad_list.append(Quad(ark_node, ns.rdf.type, ns.edm.ProvidedCHO))
         quad_list.append(Quad(ark_node, ns.continuum.hasArkID, Literal(ark_id)))
-        if self.rights != "":
+        if self.rights != "" and self.rights != " ":
             quad_list.append(Quad(ark_node, ns.dc.rights, NamedNode(self.rights)))
         """
         We only need the current version of the inventory. If its the initial item,
