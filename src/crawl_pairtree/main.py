@@ -397,6 +397,40 @@ def main():
                 store.remove(Quad(file_obj, og_name, file_name))
                 store.add(Quad(file_obj, og_name, Literal(new_name)))
 
+    store.update(
+        """    PREFIX    ark: <http://ark.lib.uchicago.edu/>
+    PREFIX bf:        <http://id.loc.gov/ontologies/bibframe/>
+    PREFIX continuum: <http://continuum.lib.uchicago.edu/ontology/>
+    PREFIX contid:    <http://continuum.lib.uchicago.edu/item/>
+    PREFIX premis:    <http://www.loc.gov/premis/rdf/v3/>
+    PREFIX ebucore:   <http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#>
+    PREFIX dc:        <http://purl.org/dc/elements/1.1/>
+    PREFIX dcterms:   <http://purl.org/dc/terms/>
+    PREFIX xsd:       <http://www.w3.org/2001/XMLSchema#>
+    PREFIX rdf:       <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX rdfs:      <http://www.w3.org/2000/01/rdf-schema#>
+    PREFIX edm:       <http://www.europeana.eu/schemas/edm/>
+    PREFIX uchicago: <https://lib.uchicago.edu/>
+
+    INSERT {
+        ?fileNode
+            premis:basis [
+                premis:allows uchicago:DownloadAllowed ;
+            ] ;
+        .
+    }
+    WHERE {
+        ?arkNode
+            dc:rights ?rights ;
+            ^dcterms:isPartOf ?fileNode ;
+        .
+        VALUES ?rights {
+            <http://creativecommons.org/licenses/by-nc/4.0/>
+            <https://rightsstatements.org/page/InC-NC/1.0/>
+        }
+    }
+    """
+    )
     output = io.BytesIO()
     serialize(store, output=output, format=RdfFormat.TURTLE, prefixes=PREFIXES)
     with open(
