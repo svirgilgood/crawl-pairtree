@@ -148,16 +148,18 @@ class BagMetadata:
                     )
 
                 case "rights":
-                    if self.rights.strip() is None:
                         print(f"rights statement error: {self.ark_node}")
                         continue
-                    quad_list.append(
-                        Quad(
-                            self.ark_node,
-                            ns.dc.rights,
-                            NamedNode(self.rights),
+                    try:
+                        quad_list.append(
+                            Quad(
+                                self.ark_node,
+                                ns.dc.rights,
+                                NamedNode(self.rights),
+                            )
                         )
-                    )
+                    except ValueError:
+                        print(f"Error with processing rights for {ark_node}")
                 case "resource_constraint":
                     try:
                         quad_list.append(
