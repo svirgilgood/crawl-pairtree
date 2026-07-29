@@ -148,8 +148,6 @@ class BagMetadata:
                     )
 
                 case "rights":
-                        print(f"rights statement error: {self.ark_node}")
-                        continue
                     try:
                         quad_list.append(
                             Quad(
