@@ -160,7 +160,7 @@ class BagMetadata:
                                 )
                             )
                         except ValueError:
-                            print(f"Error with processing rights for {ark_node}")
+                            print(f"Error with processing rights for {self.ark_node}")
                 case "resource_constraint":
 
                     try:
