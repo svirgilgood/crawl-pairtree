@@ -107,7 +107,7 @@ class BagMetadata:
     bagging_date: str = field(default="")
     resource_title: str = field(default="")
     source_organization: str = field(default="")
-    rights: str = field(default="")
+    rights: List[str] = field(default_factory=lambda: [])
 
     def add_inventory(self, inv: Inventory):
         """
@@ -148,17 +148,21 @@ class BagMetadata:
                     )
 
                 case "rights":
-                    try:
-                        quad_list.append(
-                            Quad(
-                                self.ark_node,
-                                ns.dc.rights,
-                                NamedNode(self.rights),
+                    for rights in self.rights:
+                        if rights == "https://lib.uchicago.edu/DownloadAllowed":
+                            continue
+                        try:
+                            quad_list.append(
+                                Quad(
+                                    self.ark_node,
+                                    ns.dc.rights,
+                                    NamedNode(rights),
+                                )
                             )
-                        )
-                    except ValueError:
-                        print(f"Error with processing rights for {ark_node}")
+                        except ValueError:
+                            print(f"Error with processing rights for {ark_node}")
                 case "resource_constraint":
+
                     try:
                         quad_list.append(
                             Quad(
@@ -259,8 +263,9 @@ class BagMetadata:
         print("ark node", ark_node)
         quad_list.append(Quad(ark_node, ns.rdf.type, ns.edm.ProvidedCHO))
         quad_list.append(Quad(ark_node, ns.continuum.hasArkID, Literal(ark_id)))
-        if self.rights != "" and self.rights != " ":
-            quad_list.append(Quad(ark_node, ns.dc.rights, NamedNode(self.rights)))
+        for rights in self.rights:
+            if rights in ("", " "):
+                quad_list.append(Quad(ark_node, ns.dc.rights, NamedNode(rights)))
         """
         We only need the current version of the inventory. If its the initial item,
         there will only be one version. If there are many versions, we only need
@@ -310,6 +315,16 @@ class BagMetadata:
                         file_name_set.add(file_name)
                         quad_list.append(
                             Quad(ark_node, ns.continuum.hasHeadObject, file_node)
+                        )
+                    if "https://lib.uchicago.edu/DownloadAllowed" in self.rights:
+                        rules_node = BlankNode()
+                        quad_list.append(Quad(file_node, ns.premis.basis, rules_node))
+                        quad_list.append(
+                            Quad(
+                                rules_node,
+                                ns.premis.allows,
+                                NamedNode("https://lib.uchicago.edu/DownloadAllowed"),
+                            )
                         )
 
                     if version != head:
@@ -385,7 +400,7 @@ def fill_in_bag_terms(line: str, bag_metadata: BagMetadata) -> BagMetadata:
             case "Source Organization":
                 bag_metadata.source_organization = value.strip()
             case "Resource-Constraints":
-                bag_metadata.rights = value.strip()
+                bag_metadata.rights.append(value.strip())
             case "Bagging-Date":
                 bag_metadata.bagging_date = value.strip()
     except ValueError:
