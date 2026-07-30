@@ -428,6 +428,9 @@ def main():
             <http://creativecommons.org/licenses/by-nc/4.0/>
             <https://rightsstatements.org/page/InC-NC/1.0/>
         }
+        FILTER NOT EXISTS {
+            ?fileNode premis:basis ?rule .
+        }
     }
     """
     )
