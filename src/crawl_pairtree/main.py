@@ -1,6 +1,10 @@
 """
 Create a script that crawls the pair tree and then creates the model
 of data
+
+TODO:
+    - [ ] search for and add digest algo
+    - [ ] How do we make sure that the rules basis is determined to be the latest?
 """
 
 # This needs Logging
@@ -10,6 +14,7 @@ import datetime
 import os
 import json
 import io
+import re
 
 from pathlib import Path
 
@@ -22,17 +27,17 @@ from pyoxigraph import (
     serialize,
     RdfFormat,
 )
-import pyoxigraph as po
 
-from multiprocessing import Process, Semaphore, Manager
+# import pyoxigraph as po
+
+# from multiprocessing import Process, Semaphore, Manager
+
+from .clean_up import clean_up
 
 from .namespaces import (
     ebucore,
-    ark_ns,
     continuum_ns,
     continuum_item,
-    Namespace,
-    DC,
     premis_ns,
     RDF,
     XSD,
@@ -113,7 +118,7 @@ def update_id_manifest(
     """
     run an update query for the manifest
     """
-    update_q = """PREFIX continuum: <http://continuum.lib.uchicago.edu/ontology/>
+    update_q = """PREFIX continuum: <https://continuum.lib.uchicago.edu/ontology/>
     PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     PREFIX premis:  <http://www.loc.gov/premis/rdf/v3/>
 
@@ -123,9 +128,7 @@ def update_id_manifest(
     WHERE {
         ?file premis:fixity/rdf:value ?hash
         VALUES ?hash {
-    """ % (
-        ark_node.value,
-    )
+    """ % (ark_node.value,)
     # hash_value_clause = '"' + '"\n "'.join(head_manifest.keys()) + '"'
     hash_value_clause = "\n".join([Literal(h) for h in head_manifest.keys()])
     query = update_q + hash_value_clause + "\n        }\n    }"
@@ -138,7 +141,7 @@ def create_head_object(inventory: Dict, store: Store, ark_node: NamedNode):
     Iterate backwards through the versions, and add files to the head object that
     are not in the head already. This might be better as a query that could be reused.
     """
-    file_set = set()
+    # file_set = set()
     for version in sorted(inventory["versions"].keys(), reverse=True):
         print(version)
 
@@ -165,6 +168,81 @@ def construct_original_name(
     return f"{internal_id}.{ext}" if not page else f"{internal_id}_{page}.{ext}"
 
 
+def parse_constraints(constraints_file: Path, ark_node: NamedNode, store: Store):
+    """
+    The constraints text is a delimeted file that can have the following items:
+    ```
+        rule: DownloadAllowed
+        embargo-date: 2032-05-09
+    ```
+    `rule` can be `DownloadAllowed` or `DownloadNotAllowed`
+    the `embargo-date` is optional.
+    Path(root) / f, ns.ark.term(id), store
+    """
+    basisnode = BlankNode()
+    store.add(Quad(ark_node, ns.premis.basis, basisnode))
+    pred: NamedNode = None
+    rule: NamedNode = None
+    embargo_date: Optional[Literal] = None
+
+    with open(constraints_file, "r") as cp:
+        for line in cp:
+            try:
+                directive, value = line.split(":", maxsplit=1)
+                value = value.strip()
+                match directive:
+                    case "rule":
+                        pred = (
+                            ns.premis.allows
+                            if value == "DownloadAllowed"
+                            else ns.premis.disallows
+                        )
+                        rule = ns.uchicago.term(value)
+                    case "embargo-date":
+                        if re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", value):
+                            embargo_date = Literal(value, datatype=XSD.date)
+                        elif re.fullmatch(
+                            r"-?P([0-9]+[YMD])*(T([0-9\.]+[HMS])+)?", value
+                        ):
+                            # This Parse match does make a mistake when it comes to the order of the Duration
+                            # In a Duration Y M D must go in that order  if it occurs.
+                            # It also doesn't assure that a digit follows a decimal
+                            # The idea behind these tests is just to make the distinction between a date
+                            # and a duration
+                            embargo_date = Literal(value, datatype=XSD.duration)
+                        else:
+                            print(
+                                f"Error in parisng Embargo Date {value}, in {constraints_file}"
+                            )
+                    case _:
+                        print(
+                            f"Error in parsing {directive} with {value}, in {constraints_file}"
+                        )
+
+            except ValueError:
+                print(f"Value Error in {constraints_file}, {line}")
+
+    if embargo_date:
+        embargo_node = BlankNode()
+        store.add(Quad(basisnode, pred, embargo_node))
+        store.add(
+            Quad(
+                embargo_node,
+                ns.premis.act,
+                NamedNode("https://id.loc.gov/vocabulary/preservation/eventType/dis"),
+            )
+        )
+        store.add(Quad(embargo_node, ns.uchicago.restriction, ns.uchicago.Condition))
+        time_pred = (
+            ns.uchicago.endDate
+            if embargo_date.datatype == XSD.date
+            else ns.uchicago.availableAfter
+        )
+        store.add(Quad(embargo_node, time_pred, embargo_date))
+    else:
+        store.add(Quad(basisnode, pred, rule))
+
+
 def parse_inventory(inventory_file: Path, root: Path, store: Store):
     """
     Parse the inventory file to create the various items that will be stored in
@@ -179,7 +257,7 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
     ark_id = ark_full.replace("ark:61001/", "").replace("ark:/61001/", "")
     ark_node = ns.ark.term(ark_full)
     # print("ark node", ark_node)
-    digest_algo = inventory["digestAlgorithm"]
+    # digest_algo = inventory["digestAlgorithm"]
     head = inventory["head"]
     store.add(Quad(ark_node, continuum_ns.head, Literal(head)))
     store.add(Quad(ark_node, ns.rdf.type, ns.edm.ProvidedCHO))
@@ -312,6 +390,12 @@ def process_files(f: str, root: str, store: Store):
             parse_bag_info(Path(root) / f, ns.ark.term(id), store)
         else:
             print(f"Id Not found for {root}/{f}")
+    elif f == "constraints.txt":
+        id = return_relative_id(root)
+        if id:
+            parse_constraints(Path(root) / f, ns.ark.term(id), store)
+        else:
+            print(f"ID not found for {root}/{f}")
     # elif f == "file.manifest.json":
     #    id = return_relative_id(root)
     #    if id:
@@ -355,6 +439,7 @@ def main():
             # I should set this up to ~paralize~async this
             for f in files:
                 if f in (
+                    "constraints.txt",
                     "file.dc.xml",
                     "file.info.txt",
                     "file.manifest.json",
@@ -378,7 +463,7 @@ def main():
     ):
         og_id = str(og_identifier).replace('"', "")
         for _sub, _pred, file_obj, _ in store.quads_for_pattern(
-            cho, ns.cont.hasHeadObject, None
+            cho, ns.continuum.hasHeadObject, None
         ):
             for _sub, og_name, file_name, _ in store.quads_for_pattern(
                 file_obj, ns.premis.originalName, None
@@ -392,48 +477,12 @@ def main():
                 else:
                     new_name = file_str.replace("file", f"{og_id}")
                 new_name = new_name.replace('"', "")
-                print(new_name)
+                # print(new_name)
 
                 store.remove(Quad(file_obj, og_name, file_name))
                 store.add(Quad(file_obj, og_name, Literal(new_name)))
 
-    store.update(
-        """    PREFIX    ark: <http://ark.lib.uchicago.edu/>
-    PREFIX bf:        <http://id.loc.gov/ontologies/bibframe/>
-    PREFIX continuum: <http://continuum.lib.uchicago.edu/ontology/>
-    PREFIX contid:    <http://continuum.lib.uchicago.edu/item/>
-    PREFIX premis:    <http://www.loc.gov/premis/rdf/v3/>
-    PREFIX ebucore:   <http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#>
-    PREFIX dc:        <http://purl.org/dc/elements/1.1/>
-    PREFIX dcterms:   <http://purl.org/dc/terms/>
-    PREFIX xsd:       <http://www.w3.org/2001/XMLSchema#>
-    PREFIX rdf:       <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-    PREFIX rdfs:      <http://www.w3.org/2000/01/rdf-schema#>
-    PREFIX edm:       <http://www.europeana.eu/schemas/edm/>
-    PREFIX uchicago: <https://lib.uchicago.edu/>
-
-    INSERT {
-        ?fileNode
-            premis:basis [
-                premis:allows uchicago:DownloadAllowed ;
-            ] ;
-        .
-    }
-    WHERE {
-        ?arkNode
-            dc:rights ?rights ;
-            ^dcterms:isPartOf ?fileNode ;
-        .
-        VALUES ?rights {
-            <http://creativecommons.org/licenses/by-nc/4.0/>
-            <https://rightsstatements.org/page/InC-NC/1.0/>
-        }
-        FILTER NOT EXISTS {
-            ?fileNode premis:basis ?rule .
-        }
-    }
-    """
-    )
+    store = clean_up(store)
     output = io.BytesIO()
     serialize(store, output=output, format=RdfFormat.TURTLE, prefixes=PREFIXES)
     with open(
