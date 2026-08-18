@@ -4,7 +4,7 @@ from pyoxigraph import Store, NamedNode, Literal, Quad
 from pathlib import Path
 from .namespaces import NS, PREFIXES
 
-from typing import List
+# from typing import List
 
 ns = NS(PREFIXES)
 
