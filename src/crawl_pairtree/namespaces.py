@@ -1,6 +1,6 @@
 from pyoxigraph import NamedNode
 
-from typing import Optional, Dict
+from typing import Dict
 
 
 class Namespace(str):
@@ -31,8 +31,8 @@ DCTERMS = Namespace("http://purl.org/dc/terms/")
 PREFIXES = {
     "ark": "https://ark.lib.uchicago.edu/",
     "bf": "http://id.loc.gov/ontologies/bibframe/",
-    "continuum": "http://continuum.lib.uchicago.edu/item/",
-    "cont": "http://continuum.lib.uchicago.edu/ontology/",
+    "cont": "https://continuum.lib.uchicago.edu/item/",
+    "continuum": "https://continuum.lib.uchicago.edu/ontology/",
     "premis": "http://www.loc.gov/premis/rdf/v3/",
     "ebucore": "http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#",
     "dc": "http://purl.org/dc/elements/1.1/",
@@ -41,6 +41,7 @@ PREFIXES = {
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
     "edm": "http://www.europeana.eu/schemas/edm/",
+    "uchicago": "http://lib.uchicago.edu/",
 }
 
 
