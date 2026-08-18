@@ -172,7 +172,7 @@ class BagMetadata:
                             )
                         )
                     except ValueError:
-                        print(f"Resource Constraint: self.resource_constraint")
+                        # print(f"Resource Constraint: {self.resource_constraint}")
                         quad_list.append(
                             Quad(
                                 self.ark_node,
@@ -245,9 +245,9 @@ class BagMetadata:
         """
         if self.inventory:
             inventory = self.inventory
-            digest_algo = inventory["digestAlgorithm"]
+            # digest_algo = inventory["digestAlgorithm"]
             head = inventory["head"]
-            quad_list.append(Quad(ark_node, ns.continuum.head, Literal(head)))
+            quad_list.append(Quad(self.ark_node, ns.continuum.head, Literal(head)))
             ark_full = inventory["id"]  # .replace("ark:61001/", "")
             versions = inventory["versions"]
 
@@ -336,9 +336,9 @@ class BagMetadata:
                         )
 
                     quad_list.append(Quad(file_node, ns.continuum.fileType, type_node))
-                    og_file_name = Literal(
-                        self.construct_original_name(file_name, page)
-                    )
+                    # og_file_name = Literal(
+                    #    self.construct_original_name(file_name, page)
+                    # )
                     quad_list.append(
                         Quad(file_node, ns.premis.originalName, Literal(file_name))
                     )
