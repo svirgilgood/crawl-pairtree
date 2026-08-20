@@ -318,7 +318,7 @@ def parse_inventory(inventory_file: Path, root: Path, store: Store):
 
                 store.add(Quad(file_node, continuum_ns.fileType, type_node))
 
-                store.add(Quad(file_node, premis_ns.originalName, Literal(file_name)))
+                store.add(Quad(file_node, continuum_ns.filename, Literal(file_name)))
                 store.add(Quad(file_node, continuum_ns.partOfVersion, Literal(version)))
                 store.add(
                     Quad(
@@ -458,6 +458,7 @@ def main():
     # print(dir)
     store.flush()
 
+    """
     for cho, _pred, og_identifier, _ in store.quads_for_pattern(
         None, ns.continuum.originalIdentifier, None
     ):
@@ -481,6 +482,7 @@ def main():
 
                 store.remove(Quad(file_obj, og_name, file_name))
                 store.add(Quad(file_obj, og_name, Literal(new_name)))
+    """
 
     store = clean_up(store)
     output = io.BytesIO()
