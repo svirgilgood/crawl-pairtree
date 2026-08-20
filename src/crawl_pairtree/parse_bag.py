@@ -340,7 +340,7 @@ class BagMetadata:
                     #    self.construct_original_name(file_name, page)
                     # )
                     quad_list.append(
-                        Quad(file_node, ns.premis.originalName, Literal(file_name))
+                        Quad(file_node, ns.continuum.filename, Literal(file_name))
                     )
                     quad_list.append(
                         Quad(file_node, ns.continuum.partOfVersion, Literal(version))
