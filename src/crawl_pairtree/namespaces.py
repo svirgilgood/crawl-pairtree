@@ -41,7 +41,7 @@ PREFIXES = {
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
     "edm": "http://www.europeana.eu/schemas/edm/",
-    "uchicago": "http://lib.uchicago.edu/",
+    "uchicago": "https://lib.uchicago.edu/",
 }
 
 
