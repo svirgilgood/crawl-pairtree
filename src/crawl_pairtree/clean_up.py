@@ -36,6 +36,7 @@ def clean_up(store: Store) -> Store:
         VALUES ?rights {
             <http://creativecommons.org/licenses/by-nc/4.0/>
             <https://rightsstatements.org/page/InC-NC/1.0/>
+            <http://rightsstatements.org/vocab/InC-NC/1.0/>
         }
         FILTER NOT EXISTS {
             ?fileNode premis:basis ?rule .
